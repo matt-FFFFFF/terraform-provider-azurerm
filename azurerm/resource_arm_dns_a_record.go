@@ -48,7 +48,7 @@ func resourceArmDnsARecord() *schema.Resource {
 
 			"records": {
 				Type:     schema.TypeSet,
-				Required: true,
+				Optional: true,
 				Elem:     &schema.Schema{Type: schema.TypeString},
 				Set:      schema.HashString,
 			},
@@ -61,6 +61,12 @@ func resourceArmDnsARecord() *schema.Resource {
 			"fqdn": {
 				Type:     schema.TypeString,
 				Computed: true,
+			},
+
+			"target_resource_id": {
+				Type:         schema.TypeString,
+				Optional:     true,
+				ValidateFunc: azure.ValidateResourceID,
 			},
 
 			"tags": tags.Schema(),
@@ -92,13 +98,21 @@ func resourceArmDnsARecordCreateUpdate(d *schema.ResourceData, meta interface{})
 
 	ttl := int64(d.Get("ttl").(int))
 	t := d.Get("tags").(map[string]interface{})
+	targetResourceId := d.Get("target_resource_id").(string)
+
+	var targetResource dns.SubResource
+
+	if targetResourceId != "" {
+		targetResource.ID = utils.String(targetResourceId)
+	}
 
 	parameters := dns.RecordSet{
 		Name: &name,
 		RecordSetProperties: &dns.RecordSetProperties{
-			Metadata: tags.Expand(t),
-			TTL:      &ttl,
-			ARecords: expandAzureRmDnsARecords(d),
+			Metadata:       tags.Expand(t),
+			TTL:            &ttl,
+			ARecords:       expandAzureRmDnsARecords(d),
+			TargetResource: &targetResource,
 		},
 	}
 
@@ -145,15 +159,21 @@ func resourceArmDnsARecordRead(d *schema.ResourceData, meta interface{}) error {
 		return fmt.Errorf("Error reading DNS A record %s: %+v", name, err)
 	}
 
+	targetResource := resp.TargetResource
+
 	d.Set("name", name)
 	d.Set("resource_group_name", resGroup)
 	d.Set("zone_name", zoneName)
 	d.Set("ttl", resp.TTL)
 	d.Set("fqdn", resp.Fqdn)
+	d.Set("target_resource_id", targetResource.ID)
 
-	if err := d.Set("records", flattenAzureRmDnsARecords(resp.ARecords)); err != nil {
-		return err
+	if resp.ARecords != nil {
+		if err := d.Set("records", flattenAzureRmDnsARecords(resp.ARecords)); err != nil {
+			return err
+		}
 	}
+
 	return tags.FlattenAndSet(d, resp.Metadata)
 }
 
