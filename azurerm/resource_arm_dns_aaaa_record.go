@@ -48,9 +48,10 @@ func resourceArmDnsAAAARecord() *schema.Resource {
 
 			"records": {
 				Type:     schema.TypeSet,
-				Required: true,
+				Optional: true,
 				Elem:     &schema.Schema{Type: schema.TypeString},
 				Set:      schema.HashString,
+				ConflictsWith: []string{"target_resource_id"},
 			},
 
 			"ttl": {
@@ -64,6 +65,13 @@ func resourceArmDnsAAAARecord() *schema.Resource {
 			},
 
 			"tags": tags.Schema(),
+
+			"target_resource_id": {
+				Type:          schema.TypeString,
+				Optional:      true,
+				ValidateFunc:  azure.ValidateResourceID,
+				ConflictsWith: []string{"records"},
+			},
 		},
 	}
 }
@@ -92,13 +100,24 @@ func resourceArmDnsAaaaRecordCreateUpdate(d *schema.ResourceData, meta interface
 
 	ttl := int64(d.Get("ttl").(int))
 	t := d.Get("tags").(map[string]interface{})
+	targetResourceId := d.Get("target_resource_id").(string)
+
+	if bool(targetResourceId == "") && bool(len(d.Get("records").(*schema.Set).List()) == 0) {
+		return fmt.Errorf("Neither 'records' nor 'target_resource_id' is defined")
+	}
+
+	var targetResource dns.SubResource
+	if targetResourceId != "" {
+		targetResource.ID = utils.String(targetResourceId)
+	}
 
 	parameters := dns.RecordSet{
 		Name: &name,
 		RecordSetProperties: &dns.RecordSetProperties{
-			Metadata:    tags.Expand(t),
-			TTL:         &ttl,
-			AaaaRecords: expandAzureRmDnsAaaaRecords(d),
+			Metadata:       tags.Expand(t),
+			TTL:            &ttl,
+			AaaaRecords:    expandAzureRmDnsAaaaRecords(d),
+			TargetResource: &targetResource,
 		},
 	}
 
@@ -145,14 +164,20 @@ func resourceArmDnsAaaaRecordRead(d *schema.ResourceData, meta interface{}) erro
 		return fmt.Errorf("Error reading DNS AAAA record %s: %v", name, err)
 	}
 
+	targetResource := resp.TargetResource
+	
 	d.Set("name", name)
 	d.Set("resource_group_name", resGroup)
 	d.Set("zone_name", zoneName)
 	d.Set("ttl", resp.TTL)
 	d.Set("fqdn", resp.Fqdn)
+	d.Set("target_resource_id", targetResource.ID)
 
-	if err := d.Set("records", flattenAzureRmDnsAaaaRecords(resp.AaaaRecords)); err != nil {
-		return err
+	// Only flatten DNS records if they are present in the resource, e.g. not for alias records
+	if resp.AaaaRecords != nil {
+		if err := d.Set("records", flattenAzureRmDnsAaaaRecords(resp.AaaaRecords)); err != nil {
+			return err
+		}
 	}
 	return tags.FlattenAndSet(d, resp.Metadata)
 }
