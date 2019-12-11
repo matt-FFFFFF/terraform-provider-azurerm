@@ -167,6 +167,7 @@ func TestAccAzureRMDnsARecord_withAlias(t *testing.T) {
 			},
 		},
 	})
+}
 
 func testCheckAzureRMDnsAaaaRecordExists(resourceName string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
