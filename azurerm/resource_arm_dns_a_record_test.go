@@ -134,6 +134,8 @@ func TestAccAzureRMDnsARecord_withTags(t *testing.T) {
 
 func TestAccAzureRMDnsARecord_withAlias(t *testing.T) {
 	resourceName := "azurerm_dns_a_record.test"
+	targetResourceName := "azurerm_public_ip.test"
+	targetResourceName2 := "azurerm_public_ip.test2"
 	ri := tf.AccRandTimeInt()
 	location := testLocation()
 	preConfig := testAccAzureRMDnsARecord_withAlias(ri, location)
@@ -148,14 +150,14 @@ func TestAccAzureRMDnsARecord_withAlias(t *testing.T) {
 				Config: preConfig,
 				Check: resource.ComposeTestCheckFunc(
 					testCheckAzureRMDnsARecordExists(resourceName),
-					resource.TestCheckResourceAttrSet(resourceName, "target_resource_id"),
+					resource.TestCheckResourceAttrPair(resourceName, "target_resource_id", targetResourceName, "id"),
 				),
 			},
 			{
 				Config: postConfig,
 				Check: resource.ComposeTestCheckFunc(
 					testCheckAzureRMDnsARecordExists(resourceName),
-					resource.TestCheckResourceAttrSet(resourceName, "target_resource_id"),
+					resource.TestCheckResourceAttrPair(resourceName, "target_resource_id", targetResourceName2, "id"),
 				),
 			},
 			{

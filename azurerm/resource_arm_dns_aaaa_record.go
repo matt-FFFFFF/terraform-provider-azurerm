@@ -47,10 +47,10 @@ func resourceArmDnsAAAARecord() *schema.Resource {
 			},
 
 			"records": {
-				Type:     schema.TypeSet,
-				Optional: true,
-				Elem:     &schema.Schema{Type: schema.TypeString},
-				Set:      schema.HashString,
+				Type:          schema.TypeSet,
+				Optional:      true,
+				Elem:          &schema.Schema{Type: schema.TypeString},
+				Set:           schema.HashString,
 				ConflictsWith: []string{"target_resource_id"},
 			},
 
@@ -165,7 +165,7 @@ func resourceArmDnsAaaaRecordRead(d *schema.ResourceData, meta interface{}) erro
 	}
 
 	targetResource := resp.TargetResource
-	
+
 	d.Set("name", name)
 	d.Set("resource_group_name", resGroup)
 	d.Set("zone_name", zoneName)
