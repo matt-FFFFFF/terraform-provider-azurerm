@@ -164,14 +164,12 @@ func resourceArmDnsARecordRead(d *schema.ResourceData, meta interface{}) error {
 		return fmt.Errorf("Error reading DNS A record %s: %+v", name, err)
 	}
 
-	targetResource := resp.TargetResource
-
 	d.Set("name", name)
 	d.Set("resource_group_name", resGroup)
 	d.Set("zone_name", zoneName)
 	d.Set("ttl", resp.TTL)
 	d.Set("fqdn", resp.Fqdn)
-	d.Set("target_resource_id", targetResource.ID)
+	d.Set("target_resource_id", (resp.TargetResource).ID)
 
 	// Only flatten DNS records if they are present in the resource, e.g. not for alias records
 	if resp.ARecords != nil {

@@ -156,7 +156,7 @@ func TestAccAzureRMDnsAAAARecord_withAlias(t *testing.T) {
 			{
 				Config: postConfig,
 				Check: resource.ComposeTestCheckFunc(
-					testCheckAzureRMDnsARecordExists(resourceName),
+					testCheckAzureRMDnsAaaaRecordExists(resourceName),
 					resource.TestCheckResourceAttrPair(resourceName, "target_resource_id", targetResourceName2, "id"),
 				),
 			},
