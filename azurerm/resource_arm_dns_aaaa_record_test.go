@@ -132,7 +132,7 @@ func TestAccAzureRMDnsAAAARecord_withTags(t *testing.T) {
 	})
 }
 
-func TestAccAzureRMDnsARecord_withAlias(t *testing.T) {
+func TestAccAzureRMDnsAAAARecord_withAlias(t *testing.T) {
 	resourceName := "azurerm_dns_aaaa_record.test"
 	targetResourceName := "azurerm_public_ip.test"
 	targetResourceName2 := "azurerm_public_ip.test2"
