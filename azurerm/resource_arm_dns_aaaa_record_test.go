@@ -361,7 +361,7 @@ resource "azurerm_public_ip" "test" {
 }
 
 resource "azurerm_dns_aaaa_record" "test" {
-  name                = "myarecord%d"
+  name                = "myaaaarecord%d"
   resource_group_name = "${azurerm_resource_group.test.name}"
   zone_name           = "${azurerm_dns_zone.test.name}"
   ttl                 = 300
@@ -391,7 +391,7 @@ resource "azurerm_public_ip" "test2" {
 }
 
 resource "azurerm_dns_aaaa_record" "test" {
-  name                = "myarecord%d"
+  name                = "myaaaarecord%d"
   resource_group_name = "${azurerm_resource_group.test.name}"
   zone_name           = "${azurerm_dns_zone.test.name}"
   ttl                 = 300

@@ -158,8 +158,8 @@ func TestAccAzureRMDnsCNameRecord_withTags(t *testing.T) {
 
 func TestAccAzureRMDnsCNameRecord_withAlias(t *testing.T) {
 	resourceName := "azurerm_dns_cname_record.test"
-	targetResourceName := "azurerm_public_ip.test"
-	targetResourceName2 := "azurerm_public_ip.test2"
+	targetResourceName := "azurerm_dns_cname_record.target"
+	targetResourceName2 := "azurerm_dns_cname_record.target2"
 	ri := tf.AccRandTimeInt()
 	location := testLocation()
 	preConfig := testAccAzureRMDnsCNameRecord_withAlias(ri, location)
@@ -398,20 +398,20 @@ resource "azurerm_dns_zone" "test" {
   resource_group_name = "${azurerm_resource_group.test.name}"
 }
 
-resource "azurerm_public_ip" "test" {
-	name                = "mypublicip%d"
-	location            = "${azurerm_resource_group.test.location}"
+resource "azurerm_dns_cname_record" "target" {
+	name                = "mycnametarget%d"
 	resource_group_name = "${azurerm_resource_group.test.name}"
-	allocation_method   = "Dynamic"
-	ip_version          = "IPv4"
+	zone_name           = "${azurerm_dns_zone.test.name}"
+	ttl                 = 300
+	record              = "contoso.com"
 }
 
 resource "azurerm_dns_cname_record" "test" {
-  name                = "myarecord%d"
+  name                = "mycnamerecord%d"
   resource_group_name = "${azurerm_resource_group.test.name}"
   zone_name           = "${azurerm_dns_zone.test.name}"
   ttl                 = 300
-  target_resource_id   = "${azurerm_public_ip.test.id}"
+  target_resource_id   = "${azurerm_dns_cname_record.target.id}"
 }
 `, rInt, location, rInt, rInt, rInt)
 }
@@ -428,20 +428,20 @@ resource "azurerm_dns_zone" "test" {
   resource_group_name = "${azurerm_resource_group.test.name}"
 }
 
-resource "azurerm_public_ip" "test2" {
-	name                = "mypublicip%d2"
-	location            = "${azurerm_resource_group.test.location}"
+resource "azurerm_dns_cname_record" "target2" {
+	name                = "mycnametarget%d2"
 	resource_group_name = "${azurerm_resource_group.test.name}"
-	allocation_method   = "Dynamic"
-	ip_version          = "IPv4"
+	zone_name           = "${azurerm_dns_zone.test.name}"
+	ttl                 = 300
+	record              = "contoso.co.uk"
 }
 
 resource "azurerm_dns_cname_record" "test" {
-  name                = "myarecord%d"
+  name                = "mycnamerecord%d"
   resource_group_name = "${azurerm_resource_group.test.name}"
   zone_name           = "${azurerm_dns_zone.test.name}"
   ttl                 = 300
-  target_resource_id  = "${azurerm_public_ip.test2.id}"
+  target_resource_id  = "${azurerm_dns_cname_record.target2.id}"
 }
 `, rInt, location, rInt, rInt, rInt)
 }
