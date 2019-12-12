@@ -13,13 +13,13 @@ require (
 	github.com/hashicorp/go-uuid v1.0.1
 	github.com/hashicorp/go-version v1.2.0
 	github.com/hashicorp/terraform v0.12.9
-	github.com/hashicorp/terraform-plugin-sdk v1.1.1
+	github.com/hashicorp/terraform-plugin-sdk v1.4.0
 	github.com/satori/go.uuid v1.2.0
 	github.com/satori/uuid v0.0.0-20160927100844-b061729afc07
 	github.com/terraform-providers/terraform-provider-azuread v0.6.1-0.20191007035844-361c0a206ad4
 	github.com/tombuildsstuff/giovanni v0.6.0
 	golang.org/x/crypto v0.0.0-20191206172530-e9b2fee46413
-	golang.org/x/net v0.0.0-20190813141303-74dc4d7220e7
+	golang.org/x/net v0.0.0-20191009170851-d66e71096ffb
 	gopkg.in/yaml.v2 v2.2.2
 )
 
