@@ -47,11 +47,11 @@ func resourceArmDnsARecord() *schema.Resource {
 			},
 
 			"records": {
-				Type:          schema.TypeSet,
-				Optional:      true,
-				Elem:          &schema.Schema{Type: schema.TypeString},
-				Set:           schema.HashString,
-				ConflictsWith: []string{"target_resource_id"},
+				Type:         schema.TypeSet,
+				Optional:     true,
+				Elem:         &schema.Schema{Type: schema.TypeString},
+				Set:          schema.HashString,
+				ExactlyOneOf: []string{"target_resource_id", "records"},
 			},
 
 			"ttl": {
@@ -65,10 +65,10 @@ func resourceArmDnsARecord() *schema.Resource {
 			},
 
 			"target_resource_id": {
-				Type:          schema.TypeString,
-				Optional:      true,
-				ValidateFunc:  azure.ValidateResourceID,
-				ConflictsWith: []string{"records"},
+				Type:         schema.TypeString,
+				Optional:     true,
+				ValidateFunc: azure.ValidateResourceID,
+				ExactlyOneOf: []string{"records"},
 			},
 
 			"tags": tags.Schema(),
@@ -100,23 +100,19 @@ func resourceArmDnsARecordCreateUpdate(d *schema.ResourceData, meta interface{})
 
 	ttl := int64(d.Get("ttl").(int))
 	t := d.Get("tags").(map[string]interface{})
-	targetResourceId := d.Get("target_resource_id").(string)
 
-	if bool(targetResourceId == "") && bool(len(d.Get("records").(*schema.Set).List()) == 0) {
-		return fmt.Errorf("Neither 'records' nor 'target_resource_id' is defined")
-	}
+	var targetResource := dns.SubResource
 
-	var targetResource dns.SubResource
-	if targetResourceId != "" {
-		targetResource.ID = utils.String(targetResourceId)
+	if targetResourceId := d.Get("target_resource_id").(string); len(targetResourceId) > 0 {
+		targetResource.ID = targetResourceId
 	}
 
 	parameters := dns.RecordSet{
 		Name: &name,
 		RecordSetProperties: &dns.RecordSetProperties{
-			Metadata:       tags.Expand(t),
-			TTL:            &ttl,
-			ARecords:       expandAzureRmDnsARecords(d),
+			Metadata: tags.Expand(t),
+			TTL:      &ttl,
+			ARecords: expandAzureRmDnsARecords(d),
 			TargetResource: &targetResource,
 		},
 	}
@@ -169,13 +165,15 @@ func resourceArmDnsARecordRead(d *schema.ResourceData, meta interface{}) error {
 	d.Set("zone_name", zoneName)
 	d.Set("ttl", resp.TTL)
 	d.Set("fqdn", resp.Fqdn)
-	d.Set("target_resource_id", (resp.TargetResource).ID)
 
-	// Only flatten DNS records if they are present in the resource, e.g. not for alias records
-	if resp.ARecords != nil {
-		if err := d.Set("records", flattenAzureRmDnsARecords(resp.ARecords)); err != nil {
-			return err
+	if tr := resp.TargetResource; tr != nil {
+		if tr.ID != nil && len(*tr.ID) > 0 {
+			d.Set("target_resource_id", tr.ID)
 		}
+	}
+
+	if err := d.Set("records", flattenAzureRmDnsARecords(resp.ARecords)); err != nil {
+		return err
 	}
 
 	return tags.FlattenAndSet(d, resp.Metadata)
@@ -204,11 +202,12 @@ func resourceArmDnsARecordDelete(d *schema.ResourceData, meta interface{}) error
 }
 
 func flattenAzureRmDnsARecords(records *[]dns.ARecord) []string {
-	results := make([]string, 0, len(*records))
-
+	results := make([]string, 0, 0)
 	if records != nil {
 		for _, record := range *records {
-			results = append(results, *record.Ipv4Address)
+			if record.Ipv4Address != nil {
+				results = append(results, *record.Ipv4Address)
+			}
 		}
 	}
 
