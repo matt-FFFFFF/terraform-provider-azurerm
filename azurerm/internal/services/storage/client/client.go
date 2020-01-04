@@ -10,6 +10,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/services/storage/mgmt/2019-04-01/storage"
 	az "github.com/Azure/go-autorest/autorest/azure"
 	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/internal/common"
+	"github.com/tombuildsstuff/giovanni/storage/2018-11-09/blob/accounts"
 	"github.com/tombuildsstuff/giovanni/storage/2018-11-09/blob/blobs"
 	"github.com/tombuildsstuff/giovanni/storage/2018-11-09/blob/containers"
 	"github.com/tombuildsstuff/giovanni/storage/2018-11-09/file/directories"
@@ -21,6 +22,7 @@ import (
 
 type Client struct {
 	AccountsClient           *storage.AccountsClient
+	PropertiesClient         *accounts.Client
 	FileSystemsClient        *filesystems.Client
 	ManagementPoliciesClient storage.ManagementPoliciesClient
 	BlobServicesClient       storage.BlobServicesClient
@@ -30,6 +32,8 @@ type Client struct {
 func NewClient(options *common.ClientOptions) *Client {
 	accountsClient := storage.NewAccountsClientWithBaseURI(options.ResourceManagerEndpoint, options.SubscriptionId)
 	options.ConfigureClient(&accountsClient.Client, options.ResourceManagerAuthorizer)
+
+	propertiesClient := accounts.NewWithEnvironment(options.Environment)
 
 	fileSystemsClient := filesystems.NewWithEnvironment(options.Environment)
 	fileSystemsClient.Authorizer = options.StorageAuthorizer
@@ -44,6 +48,7 @@ func NewClient(options *common.ClientOptions) *Client {
 	// (which should fix #2977) when the storage clients have been moved in here
 	return &Client{
 		AccountsClient:           &accountsClient,
+		PropertiesClient:         &propertiesClient,
 		FileSystemsClient:        &fileSystemsClient,
 		ManagementPoliciesClient: managementPoliciesClient,
 		BlobServicesClient:       blobServicesClient,

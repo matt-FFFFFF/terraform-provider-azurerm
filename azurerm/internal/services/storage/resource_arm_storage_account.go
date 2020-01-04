@@ -28,6 +28,7 @@ import (
 	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/internal/tags"
 	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/internal/timeouts"
 	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/utils"
+	"github.com/tombuildsstuff/giovanni/storage/2018-11-09/blob/accounts"
 	"github.com/tombuildsstuff/giovanni/storage/2018-11-09/queue/queues"
 )
 
@@ -271,6 +272,31 @@ func resourceArmStorageAccount() *schema.Resource {
 				ValidateFunc: validateAzureRMStorageAccountTags,
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
+				},
+			},
+
+			"static_website": {
+				Type:     schema.TypeList,
+				Optional: true,
+				MaxItems: 1,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"enabled": {
+							Type:     schema.TypeBool,
+							Required: true,
+							Default:  false,
+						},
+						"index_document": {
+							Type:     schema.TypeString,
+							Optional: true,
+							Default:  "/index.html",
+						},
+						"error_document_404": {
+							Type:     schema.TypeString,
+							Optional: true,
+							Default:  "/404.html",
+						},
+					},
 				},
 			},
 
@@ -826,6 +852,18 @@ func resourceArmStorageAccountCreate(d *schema.ResourceData, meta interface{}) e
 		}
 	}
 
+	if val, ok := d.GetOk("static_website"); ok {
+		staticWebsite := expandStorageAccountStaticWebsite(val.([]interface{}))
+
+		propertiesClient := meta.(*clients.Client).Storage.PropertiesClient
+		serviceProperties := accounts.StorageServiceProperties{
+			StaticWebsite: staticWebsite,
+		}
+		if _, err := propertiesClient.SetServiceProperties(ctx, storageAccountName, serviceProperties); err != nil {
+			return fmt.Errorf("Error updating Azure Storage Account `static_website` %q: %+v", storageAccountName, err)
+		}
+	}
+
 	return resourceArmStorageAccountRead(d, meta)
 }
 
@@ -1050,12 +1088,28 @@ func resourceArmStorageAccountUpdate(d *schema.ResourceData, meta interface{}) e
 		d.SetPartial("queue_properties")
 	}
 
+	if d.HasChange("static_website") {
+		propertiesClient := meta.(*clients.Client).Storage.PropertiesClient
+
+		staticWebsite := expandStorageAccountStaticWebsite(d.Get("static_website").([]interface{}))
+		serviceProperties := accounts.StorageServiceProperties{
+			StaticWebsite: staticWebsite,
+		}
+
+		if _, err := propertiesClient.SetServiceProperties(ctx, storageAccountName, serviceProperties); err != nil {
+			return fmt.Errorf("Error updating Azure Storage Account `static_website` %q: %+v", storageAccountName, err)
+		}
+
+		d.SetPartial("static_website")
+	}
+
 	d.Partial(false)
 	return resourceArmStorageAccountRead(d, meta)
 }
 
 func resourceArmStorageAccountRead(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*clients.Client).Storage.AccountsClient
+	propertiesClient := meta.(*clients.Client).Storage.PropertiesClient
 	advancedThreatProtectionClient := meta.(*clients.Client).SecurityCenter.AdvancedThreatProtectionClient
 	endpointSuffix := meta.(*clients.Client).Account.Environment.StorageEndpointSuffix
 	ctx, cancel := timeouts.ForRead(meta.(*clients.Client).StopContext, d)
@@ -1075,6 +1129,11 @@ func resourceArmStorageAccountRead(d *schema.ResourceData, meta interface{}) err
 			return nil
 		}
 		return fmt.Errorf("Error reading the state of AzureRM Storage Account %q: %+v", name, err)
+	}
+
+	propResp, err := propertiesClient.GetServiceProperties(ctx, name)
+	if err != nil {
+		return fmt.Errorf("rror reading the state of AzureRM Storage Accout Blob Service Properties %q: %+v", name, err)
 	}
 
 	// handle the user not having permissions to list the keys
@@ -1183,6 +1242,14 @@ func resourceArmStorageAccountRead(d *schema.ResourceData, meta interface{}) err
 
 		if err := d.Set("network_rules", flattenStorageAccountNetworkRules(props.NetworkRuleSet)); err != nil {
 			return fmt.Errorf("Error setting `network_rules`: %+v", err)
+		}
+	}
+
+	if svcProps := propResp.StorageServiceProperties; svcProps != nil {
+		if staticWebsite := svcProps.StaticWebsite; staticWebsite != nil {
+			if err := d.Set("static_website", flattenStorageAccountStaticWebsite(staticWebsite)); err != nil {
+				return fmt.Errorf("Error setting `static_website`: %+v", err)
+			}
 		}
 	}
 
@@ -1324,6 +1391,38 @@ func resourceArmStorageAccountDelete(d *schema.ResourceData, meta interface{}) e
 	storageClient.RemoveAccountFromCache(name)
 
 	return nil
+}
+
+func expandStorageAccountStaticWebsite(input []interface{}) *accounts.StaticWebsite {
+	if len(input) == 0 {
+		return &accounts.StaticWebsite{
+			Enabled: false,
+		}
+	}
+
+	staticwebsite := input[0].(map[string]interface{})
+	enabled := staticwebsite["enabled"].(bool)
+	indexDocument := staticwebsite["index_document"].(string)
+	errorDocument404 := staticwebsite["error_document_404"].(string)
+	return &accounts.StaticWebsite{
+		Enabled:              enabled,
+		IndexDocument:        indexDocument,
+		ErrorDocument404Path: errorDocument404,
+	}
+}
+
+func flattenStorageAccountStaticWebsite(input *accounts.StaticWebsite) []interface{} {
+	staticWebsite := make(map[string]interface{})
+
+	if input != nil {
+		staticWebsite["enabled"] = input.Enabled
+		staticWebsite["index_document"] = input.IndexDocument
+		staticWebsite["error_document_404"] = input.ErrorDocument404Path
+	} else {
+		staticWebsite["enabled"] = false
+	}
+
+	return []interface{}{staticWebsite}
 }
 
 func expandStorageAccountCustomDomain(d *schema.ResourceData) *storage.CustomDomain {
