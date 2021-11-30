@@ -59,9 +59,7 @@ func resourceResourceGroupCreateUpdate(d *pluginsdk.ResourceData, meta interface
 	t := d.Get("tags").(map[string]interface{})
 
 	if v, ok := d.GetOk("subscription_id"); ok {
-		newclient := *client
-		newclient.SubscriptionID = v.(string)
-		client = &newclient
+		client = copyGroupsClientWithNewSubscriptionId(client, v.(string))
 	}
 
 	if d.IsNewResource() {
@@ -102,9 +100,7 @@ func resourceResourceGroupRead(d *pluginsdk.ResourceData, meta interface{}) erro
 	defer cancel()
 
 	if v, ok := d.GetOk("subscription_id"); ok {
-		newclient := *client
-		newclient.SubscriptionID = v.(string)
-		client = &newclient
+		client = copyGroupsClientWithNewSubscriptionId(client, v.(string))
 	}
 
 	id, err := parse.ResourceGroupID(d.Id())
@@ -134,9 +130,7 @@ func resourceResourceGroupDelete(d *pluginsdk.ResourceData, meta interface{}) er
 	defer cancel()
 
 	if v, ok := d.GetOk("subscription_id"); ok {
-		newclient := *client
-		newclient.SubscriptionID = v.(string)
-		client = &newclient
+		client = copyGroupsClientWithNewSubscriptionId(client, v.(string))
 	}
 
 	id, err := parse.ResourceGroupID(d.Id())
@@ -217,4 +211,10 @@ More information on the 'features' block can be found in the documentation:
 https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs#features
 `, name, strings.Join(formattedResourceUris, "\n"))
 	return fmt.Errorf(strings.ReplaceAll(message, "'", "`"))
+}
+
+func copyGroupsClientWithNewSubscriptionId(c *resources.GroupsClient, s string) *resources.GroupsClient {
+	nc := *c
+	nc.SubscriptionID = s
+	return &nc
 }
